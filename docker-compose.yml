@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Servicio de Productos
+  producto-service:
+    build:
+      context: ./producto-service
+      dockerfile: Dockerfile
+    container_name: producto-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - API_KEY=tu_api_key_secreta
+    networks:
+      - microservices-network
+    volumes:
+      - producto-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Servicio de Inventario
+  inventario-service:
+    build:
+      context: ./inventario-service
+      dockerfile: Dockerfile
+    container_name: inventario-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - API_KEY=tu_api_key_secreta
+      - PRODUCTO_SERVICE_URL=http://producto-service:8080
+    depends_on:
+      producto-service:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    volumes:
+      - inventario-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+# Networks
+networks:
+  microservices-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  producto-logs:
+  inventario-logs:
